@@ -15,7 +15,7 @@ class RunQueue(Protocol):
 
 class RedisRunQueue:
     def __init__(self, redis: Redis):
-        self.queue = Queue("tinyllm", connection=redis)
+        self.queue = Queue("microllm", connection=redis)
 
     def enqueue_run(self, run_id: str) -> str:
         job = self.queue.enqueue(

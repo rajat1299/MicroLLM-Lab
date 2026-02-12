@@ -26,7 +26,7 @@ if SENTRY_DSN:
 
 
 def create_app(store: RunStore | None = None, queue: RunQueue | None = None) -> FastAPI:
-    app = FastAPI(title="TinyLLM Lab API", version="0.1.0")
+    app = FastAPI(title="MicroLLM Lab API", version="0.1.0")
 
     app.add_middleware(
         CORSMiddleware,

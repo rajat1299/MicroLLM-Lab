@@ -1,1 +1,1 @@
-"""Shared contracts and helpers for TinyLLM Lab."""
+"""Shared contracts and helpers for MicroLLM Lab."""

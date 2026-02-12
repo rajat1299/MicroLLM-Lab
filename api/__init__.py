@@ -1,1 +1,1 @@
-"""API package for TinyLLM Lab."""
+"""API package for MicroLLM Lab."""

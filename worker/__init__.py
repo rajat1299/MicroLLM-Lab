@@ -1,1 +1,1 @@
-"""Worker package for TinyLLM Lab."""
+"""Worker package for MicroLLM Lab."""

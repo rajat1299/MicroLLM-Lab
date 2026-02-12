@@ -272,7 +272,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="hero">
-        <p className="hero-kicker">TinyLLM Lab</p>
+        <p className="hero-kicker">MicroLLM Lab</p>
         <h1>Train tiny domain GPTs. Inspect every step.</h1>
         <p>
           Real-time forward/backward visualization with constrained server-side training and selected-token computation graphs.

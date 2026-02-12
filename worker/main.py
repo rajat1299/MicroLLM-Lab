@@ -19,7 +19,7 @@ if SENTRY_DSN:
 def run_worker() -> None:
     redis: Redis = get_redis()
     with Connection(redis):
-        worker = Worker(["tinyllm"])
+        worker = Worker(["microllm"])
         worker.work(with_scheduler=False)
 
 

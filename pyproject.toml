@@ -1,5 +1,5 @@
 [project]
-name = "tinyllm-lab"
+name = "microllm-lab"
 version = "0.1.0"
 description = "Education-first tiny GPT visualizer"
 readme = "README.md"
