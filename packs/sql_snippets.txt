@@ -1,0 +1,10 @@
+SELECT id, email FROM users WHERE active = 1 ORDER BY created_at DESC;
+SELECT COUNT(*) FROM orders WHERE status = 'paid';
+INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?);
+UPDATE products SET stock = stock - 1 WHERE id = ? AND stock > 0;
+DELETE FROM logs WHERE created_at < NOW() - INTERVAL '30 days';
+SELECT u.id, p.plan_name FROM users u JOIN plans p ON p.id = u.plan_id;
+SELECT date_trunc('day', created_at) AS day, COUNT(*) FROM events GROUP BY day;
+ALTER TABLE accounts ADD COLUMN last_seen_at TIMESTAMP NULL;
+CREATE INDEX idx_orders_user_created ON orders (user_id, created_at DESC);
+WITH recent AS (SELECT * FROM events ORDER BY created_at DESC LIMIT 100) SELECT * FROM recent;

@@ -1,0 +1,10 @@
+fastapi>=0.116.0
+uvicorn>=0.35.0
+redis>=6.0.0
+rq>=2.4.0
+pydantic>=2.11.0
+python-multipart>=0.0.20
+sentry-sdk>=2.33.0
+pytest>=8.3.0
+httpx>=0.28.0
+fakeredis>=2.30.0

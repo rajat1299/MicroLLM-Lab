@@ -1,0 +1,8 @@
+X:1 T:Simple Jig M:6/8 L:1/8 K:G D|GAB d2B|cBA G2D|
+X:2 T:Minor Air M:4/4 L:1/8 K:Em E2F2 G2A2|B4 A2G2|
+X:3 T:March Fragment M:2/4 L:1/16 K:D A2FA d2fd|e2ce a2ag|
+X:4 T:Waltz Seed M:3/4 L:1/8 K:C c2e g2e|d2f a2f|
+X:5 T:Reel Cell M:4/4 L:1/8 K:A A2cA e2ce|d2Bd cAFA|
+X:6 T:Dorian Loop M:4/4 L:1/8 K:Ddor D2FA d2fa|g2fg e2dB|
+X:7 T:Cadence M:4/4 L:1/8 K:F A2c2 f2a2|g2f2 e4|
+X:8 T:Arpeggio M:2/4 L:1/8 K:G GBDg|dBGA|
