@@ -39,7 +39,7 @@ def create_app(store: RunStore | None = None, queue: RunQueue | None = None) -> 
     redis = store.redis if store else get_redis()
     app.state.redis = redis
     app.state.store = store or RunStore(redis)
-    app.state.queue = queue or RedisRunQueue(redis)
+    app.state.queue = queue or RedisRunQueue()
 
     def _store(request: Request) -> RunStore:
         return request.app.state.store

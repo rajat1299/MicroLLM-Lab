@@ -6,7 +6,7 @@ import sentry_sdk
 from redis import Redis
 from rq import Worker
 
-from shared.redis_client import get_redis
+from shared.redis_client import get_redis_raw
 from shared.settings import SENTRY_DSN
 
 
@@ -17,7 +17,7 @@ if SENTRY_DSN:
 
 
 def run_worker() -> None:
-    redis: Redis = get_redis()
+    redis: Redis = get_redis_raw()
     worker = Worker(["microllm"], connection=redis)
     worker.work(with_scheduler=False)
 

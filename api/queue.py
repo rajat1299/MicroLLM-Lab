@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from redis import Redis
 from rq import Queue
 
 from shared.constants import RUN_LIMITS
+from shared.redis_client import get_redis_raw
 
 
 class RunQueue(Protocol):
@@ -14,8 +14,9 @@ class RunQueue(Protocol):
 
 
 class RedisRunQueue:
-    def __init__(self, redis: Redis):
-        self.queue = Queue("microllm", connection=redis)
+    def __init__(self):
+        # RQ job payloads are binary-serialized; use a raw Redis client here.
+        self.queue = Queue("microllm", connection=get_redis_raw())
 
     def enqueue_run(self, run_id: str) -> str:
         job = self.queue.enqueue(
