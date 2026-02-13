@@ -1,105 +1,293 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap");
+/*
+ * MicroLLM Lab — Early Mac Era Design
+ * Inspired by Apple Human Interface Guidelines (1987)
+ * "Graphics are not merely cosmetic... they contribute greatly to ease of learning"
+ */
 
-:root {
-  --bg-0: #0b1118;
-  --bg-1: #152638;
-  --bg-2: #1f3a55;
-  --panel: #0f1d2b;
-  --panel-border: #35526d;
-  --text: #ecf3f8;
-  --muted: #98afc3;
-  --accent: #34e0a1;
-  --accent-2: #7dd3fc;
-  --danger: #ff7f8d;
+/* ============================================
+   FONTS: Chicago for UI, Monaco for data
+   ============================================ */
+@font-face {
+  font-family: 'Chicago';
+  src: url('https://cdn.jsdelivr.net/gh/nickshanks/Chicagoland@master/Chicago.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
-* {
+@font-face {
+  font-family: 'ChicagoFLF';
+  src: url('https://fonts.cdnfonts.com/s/14513/ChicagoFLF.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================
+   CSS CUSTOM PROPERTIES - Dark Mac Theme
+   ============================================ */
+:root {
+  /* Dark palette */
+  --dark-1: #1a1a1a;
+  --dark-2: #252525;
+  --dark-3: #2e2e2e;
+  --dark-4: #3a3a3a;
+  --dark-5: #4a4a4a;
+  --dark-6: #5a5a5a;
+  
+  /* Light text */
+  --light-1: #f0f0f0;
+  --light-2: #d0d0d0;
+  --light-3: #a0a0a0;
+  
+  /* Rainbow accents (from background image) */
+  --accent-teal: #F5E8D8;
+  --accent-teal-dark: #F5E8D8;
+  --accent-yellow: #e9c46a;
+  --accent-orange: #f4a261;
+  --accent-coral: #e76f51;
+  
+  /* Functional colors */
+  --bg: var(--dark-1);
+  --panel-bg: rgba(30, 30, 30, 0.92);
+  --panel-solid: var(--dark-2);
+  --border: var(--dark-5);
+  --border-light: var(--dark-6);
+  --text: var(--light-1);
+  --text-muted: var(--light-3);
+  
+  /* Primary accent */
+  --accent: var(--accent-teal);
+  --accent-hover: var(--accent-teal-dark);
+  
+  /* Shadows - softer for dark theme */
+  --shadow-panel: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-button: 1px 1px 0 rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 1px 1px 0 rgba(0, 0, 0, 0.3);
+  
+  /* Typography */
+  --font-system: 'ChicagoFLF', 'Chicago', Geneva, Tahoma, sans-serif;
+  --font-mono: Monaco, 'Courier New', monospace;
+  
+  /* Sizing */
+  --border-width: 2px;
+  --radius: 0px;
+  --radius-button: 4px;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after {
   box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(125, 211, 252, 0.18), transparent 28%),
-    radial-gradient(circle at 85% 10%, rgba(52, 224, 161, 0.16), transparent 32%),
-    linear-gradient(140deg, var(--bg-0), var(--bg-1), var(--bg-2));
+  background: var(--dark-1);
+  background-image: url('/ad19db5b-c7be-4188-8ce8-3732a627848a.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--text);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-system);
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
 }
 
-code,
-input,
-select,
-button {
-  font-family: "IBM Plex Mono", monospace;
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+h1, h2, h3 {
+  font-family: var(--font-system);
+  font-weight: normal;
+  margin: 0;
 }
 
+code, pre, input[type="number"], select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* ============================================
+   APP SHELL
+   ============================================ */
 .app-shell {
-  max-width: 1280px;
+  max-width: 1024px;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 8px;
 }
 
+/* ============================================
+   HERO - Dark Mac "About" Dialog Style
+   ============================================ */
 .hero {
-  border: 1px solid var(--panel-border);
-  background: rgba(8, 16, 26, 0.72);
-  border-radius: 18px;
-  padding: 1rem 1.2rem;
-  margin-bottom: 1rem;
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  border: var(--border-width) solid var(--border);
+  box-shadow: var(--shadow-panel);
+  padding: 0;
+  margin-bottom: 8px;
 }
 
-.hero-kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--accent-2);
-  margin: 0;
+.hero-titlebar {
+  background: var(--dark-3);
+  border-bottom: var(--border-width) solid var(--border);
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Dark pinstripes */
+  background-image: repeating-linear-gradient(
+    0deg,
+    var(--dark-3) 0px,
+    var(--dark-3) 1px,
+    var(--dark-4) 1px,
+    var(--dark-4) 2px
+  );
 }
 
-.hero h1 {
-  margin: 0.4rem 0 0.4rem;
-  line-height: 1.16;
+.hero-closebox {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--light-3);
+  background: var(--dark-4);
+  flex-shrink: 0;
 }
 
-.hero p {
-  margin: 0;
-  color: var(--muted);
+.hero-title {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--light-1);
+  background: var(--dark-3);
+  padding: 0 4px;
 }
 
+.hero-content {
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.hero-content h1 {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--light-1);
+}
+
+.hero-content p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.hero-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 8px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-coral));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-icon::after {
+  content: "🧠";
+  font-size: 32px;
+  filter: none;
+}
+
+/* ============================================
+   LAYOUT GRID
+   ============================================ */
 .layout-grid {
   display: grid;
-  gap: 0.8rem;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+  grid-template-columns: repeat(12, 1fr);
 }
 
+/* ============================================
+   PANEL - Dark Mac Window
+   ============================================ */
 .panel {
-  border: 1px solid var(--panel-border);
-  background: rgba(9, 18, 30, 0.78);
-  backdrop-filter: blur(6px);
-  border-radius: 14px;
-  padding: 0.8rem;
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  border: var(--border-width) solid var(--border);
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-titlebar {
+  background: var(--dark-3);
+  border-bottom: var(--border-width) solid var(--border);
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  /* Dark pinstripes */
+  background-image: repeating-linear-gradient(
+    0deg,
+    var(--dark-3) 0px,
+    var(--dark-3) 1px,
+    var(--dark-4) 1px,
+    var(--dark-4) 2px
+  );
+}
+
+.panel-closebox {
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--light-3);
+  background: var(--dark-4);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--light-1);
+  background: var(--dark-3);
+  padding: 0 4px;
+}
+
+.panel-content {
+  padding: 8px;
+  flex: 1;
+  overflow: auto;
 }
 
 .panel h2 {
-  margin-top: 0;
-  margin-bottom: 0.6rem;
-  font-size: 1.03rem;
+  font-size: 12px;
+  margin-bottom: 8px;
+  display: none;
+  color: var(--light-1);
 }
 
 .panel h3 {
-  margin: 0.6rem 0 0.4rem;
-  font-size: 0.92rem;
+  font-size: 11px;
+  margin: 8px 0 4px;
+  border-bottom: 1px solid var(--dark-5);
+  padding-bottom: 2px;
+  color: var(--light-2);
 }
 
+/* Panel sizes */
 .control-panel {
   grid-column: span 4;
 }
 
-.chart-panel,
-.token-panel,
-.attention-panel,
-.gradient-panel,
-.op-graph-panel {
+.chart-panel {
   grid-column: span 8;
 }
 
@@ -110,175 +298,614 @@ button {
   grid-column: span 6;
 }
 
+/* ============================================
+   FORM CONTROLS - Dark Mac Style
+   ============================================ */
 label {
   display: block;
-  margin-bottom: 0.55rem;
-  font-size: 0.84rem;
-  color: var(--muted);
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--light-2);
 }
 
-input,
-select,
-button {
+label > span {
+  display: block;
+  margin-bottom: 2px;
+}
+
+input[type="number"],
+input[type="text"],
+select {
   width: 100%;
-  margin-top: 0.28rem;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 0.48rem 0.58rem;
-  background: #071422;
-  color: var(--text);
+  margin-top: 2px;
+  padding: 3px 4px;
+  border: var(--border-width) solid var(--dark-5);
+  background: var(--dark-1);
+  color: var(--light-1);
+  box-shadow: var(--shadow-inset);
 }
 
-button {
+input[type="number"]:focus,
+input[type="text"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent-teal);
+  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.3);
+}
+
+select {
   cursor: pointer;
-  border-color: #2e7462;
-  background: linear-gradient(135deg, #0b5e47, #0c7c64);
-  font-weight: 600;
 }
 
-button.secondary {
-  border-color: #2f526b;
-  background: linear-gradient(135deg, #173247, #1f4b6b);
+select option {
+  background: var(--dark-2);
+  color: var(--light-1);
+}
+
+input[type="range"] {
+  width: 100%;
+  margin-top: 4px;
+  height: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-track {
+  height: 4px;
+  background: var(--dark-4);
+  border: 1px solid var(--dark-5);
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 16px;
+  background: var(--accent-teal);
+  border: 1px solid var(--accent-teal-dark);
+  border-radius: 2px;
+  margin-top: -7px;
+  cursor: pointer;
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.4);
+}
+
+input[type="file"] {
+  font-family: var(--font-system);
+  font-size: 11px;
+  margin-top: 4px;
+  color: var(--light-2);
+}
+
+input[type="file"]::file-selector-button {
+  font-family: var(--font-system);
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--dark-4);
+  color: var(--light-1);
+  border: 1px solid var(--dark-5);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: var(--dark-5);
+}
+
+/* ============================================
+   BUTTONS - Dark Mac with Rainbow Accents
+   ============================================ */
+button {
+  font-family: var(--font-system);
+  font-size: 12px;
+  padding: 4px 12px;
+  min-height: 22px;
+  border: var(--border-width) solid var(--dark-5);
+  border-radius: var(--radius-button);
+  background: linear-gradient(
+    180deg,
+    var(--dark-4) 0%,
+    var(--dark-3) 45%,
+    var(--dark-2) 55%,
+    var(--dark-3) 100%
+  );
+  color: var(--light-1);
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  /* 3D bevel effect - dark version */
+  border-top-color: var(--dark-5);
+  border-left-color: var(--dark-5);
+  border-right-color: var(--dark-1);
+  border-bottom-color: var(--dark-1);
+}
+
+button:hover {
+  background: linear-gradient(
+    180deg,
+    var(--dark-5) 0%,
+    var(--dark-4) 100%
+  );
+  border-color: var(--dark-6);
+}
+
+button:active {
+  background: var(--dark-2);
+  border-top-color: var(--dark-1);
+  border-left-color: var(--dark-1);
+  border-right-color: var(--dark-5);
+  border-bottom-color: var(--dark-5);
+  box-shadow: inset 1px 1px 0 var(--dark-1);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  background: var(--dark-3);
 }
 
+/* Primary action button - teal gradient */
+button.primary {
+  border-width: 2px;
+  font-weight: bold;
+  background: linear-gradient(
+    180deg,
+    var(--accent-teal) 0%,
+    var(--accent-teal-dark) 100%
+  );
+  border-color: var(--accent-teal-dark);
+  color: var(--dark-1);
+}
+
+button.primary:hover {
+  background: linear-gradient(
+    180deg,
+    #32b8a8 0%,
+    var(--accent-teal) 100%
+  );
+}
+
+button.primary:active {
+  background: var(--accent-teal-dark);
+}
+
+/* Secondary button - orange accent */
+button.secondary {
+  background: var(--dark-3);
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+button.secondary:hover {
+  background: var(--dark-4);
+  color: var(--accent-yellow);
+  border-color: var(--accent-yellow);
+}
+
+/* ============================================
+   CONFIG GRID
+   ============================================ */
 .config-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.42rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 8px;
 }
 
+/* ============================================
+   ACTION ROW
+   ============================================ */
 .action-row {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.45rem;
+  gap: 6px;
+  margin-top: 8px;
 }
 
+.action-row button {
+  flex: 1;
+}
+
+/* ============================================
+   UPLOAD BOX
+   ============================================ */
 .upload-box {
-  margin-top: 0.8rem;
-  padding-top: 0.7rem;
-  border-top: 1px dashed var(--panel-border);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dark-5);
 }
 
+/* ============================================
+   STATUS & MESSAGES
+   ============================================ */
 .status-line {
-  margin-top: 0.65rem;
+  margin-top: 8px;
   margin-bottom: 0;
+  padding: 4px 6px;
+  background: var(--dark-3);
+  border: 1px solid var(--dark-5);
+  font-size: 11px;
+  color: var(--light-2);
+}
+
+.status-line strong {
+  font-family: var(--font-mono);
+  color: var(--accent-teal);
 }
 
 .error {
-  color: var(--danger);
-  margin: 0.45rem 0 0;
+  color: var(--accent-coral);
+  background: rgba(231, 111, 81, 0.1);
+  border: 2px solid var(--accent-coral);
+  padding: 4px 6px;
+  margin: 6px 0 0;
+  font-size: 11px;
 }
 
 .muted {
-  color: var(--muted);
-  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-size: 10px;
 }
 
+/* ============================================
+   LOSS CHART - Dark Style with Teal
+   ============================================ */
 .loss-chart {
   width: 100%;
-  height: 190px;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  color: var(--accent);
-  background: rgba(4, 10, 16, 0.8);
+  height: 180px;
+  background: var(--dark-1);
+  border: var(--border-width) solid var(--dark-5);
+  box-shadow: var(--shadow-inset);
 }
 
+.loss-chart polyline {
+  stroke: var(--accent-teal);
+  stroke-width: 2;
+  fill: none;
+  shape-rendering: crispEdges;
+}
+
+.chart-axis {
+  stroke: var(--dark-5);
+  stroke-width: 1;
+}
+
+.chart-grid {
+  stroke: var(--dark-4);
+  stroke-width: 1;
+  stroke-dasharray: 2, 2;
+}
+
+/* ============================================
+   TOKEN LIST
+   ============================================ */
 .token-list {
-  max-height: 240px;
-  overflow: auto;
-  display: grid;
-  gap: 0.35rem;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--dark-5);
+  background: var(--dark-1);
 }
 
 .token-card {
-  border: 1px solid #2d4a63;
-  border-radius: 8px;
-  padding: 0.45rem;
-  background: #0b1826;
-  font-size: 0.81rem;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--dark-4);
+  font-size: 10px;
+  margin: 0;
+  color: var(--light-2);
 }
 
+.token-card:last-child {
+  border-bottom: none;
+}
+
+.token-card:nth-child(even) {
+  background: var(--dark-2);
+}
+
+.token-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.token-card code {
+  background: var(--dark-4);
+  padding: 0 3px;
+  border: 1px solid var(--dark-5);
+  color: var(--accent-yellow);
+}
+
+/* ============================================
+   ATTENTION HEATMAP - Teal to Coral Gradient
+   ============================================ */
 .heatmap-grid {
-  display: grid;
-  gap: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .head-row {
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 0.5rem;
+  display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .head-label {
-  font-size: 0.78rem;
-  color: var(--muted);
+  width: 48px;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .head-values {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 2px;
 }
 
 .cell {
-  min-width: 42px;
-  text-align: center;
-  font-size: 0.76rem;
-  border-radius: 6px;
-  border: 1px solid #264057;
-  padding: 0.2rem;
-  background: linear-gradient(160deg, #0f3147, #1b445f);
+  min-width: 28px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--dark-5);
+  background: var(--dark-2);
+  color: var(--light-3);
 }
 
+/* Intensity levels using teal-coral gradient */
+.cell[data-intensity="low"] {
+  background: var(--dark-2);
+  color: var(--light-3);
+}
+
+.cell[data-intensity="medium"] {
+  background: rgba(42, 157, 143, 0.3);
+  color: var(--light-1);
+}
+
+.cell[data-intensity="high"] {
+  background: var(--accent-teal);
+  color: var(--dark-1);
+}
+
+.cell[data-intensity="max"] {
+  background: var(--accent-coral);
+  color: var(--dark-1);
+  font-weight: bold;
+}
+
+/* ============================================
+   GRADIENT & UPDATE NORMS
+   ============================================ */
 .norm-columns {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-.norm-columns ul,
+.norm-columns ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: var(--dark-1);
+  border: 1px solid var(--dark-5);
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.norm-columns li {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--dark-4);
+  color: var(--light-2);
+}
+
+.norm-columns li:last-child {
+  border-bottom: none;
+}
+
+/* ============================================
+   SAMPLES LIST
+   ============================================ */
 .samples {
   margin: 0;
-  padding-left: 1rem;
-  font-size: 0.82rem;
+  padding: 0;
+  list-style: none;
+  background: var(--dark-1);
+  border: 1px solid var(--dark-5);
+  max-height: 80px;
+  overflow-y: auto;
 }
 
+.samples li {
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border-bottom: 1px solid var(--dark-4);
+  word-break: break-all;
+  color: var(--accent-yellow);
+}
+
+.samples li:last-child {
+  border-bottom: none;
+}
+
+.samples li:nth-child(odd) {
+  background: var(--dark-2);
+}
+
+/* ============================================
+   OPERATION GRAPH
+   ============================================ */
 .graph-list {
-  max-height: 220px;
-  overflow: auto;
-  display: grid;
-  gap: 0.25rem;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--dark-1);
+  border: 1px solid var(--dark-5);
 }
 
 .graph-node {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.5rem;
-  border: 1px solid #2c4860;
-  border-radius: 7px;
-  padding: 0.35rem;
-  font-size: 0.77rem;
-  background: #0b1724;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 3px 6px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--dark-4);
+  background: var(--dark-1);
+  color: var(--light-2);
+}
+
+.graph-node:last-child {
+  border-bottom: none;
+}
+
+.graph-node span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .graph-node.highlighted {
-  border-color: var(--accent);
-  background: linear-gradient(120deg, #143432, #0d1c2e);
+  background: var(--accent-teal);
+  color: var(--dark-1);
+  font-weight: bold;
 }
 
-@media (max-width: 1024px) {
+/* ============================================
+   SCROLLBAR STYLING - Dark Mac
+   ============================================ */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-2);
+  border: 1px solid var(--dark-4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dark-5);
+  border: 1px solid var(--dark-6);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-6);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--dark-2);
+}
+
+/* ============================================
+   RUNNING STATE ANIMATION
+   "People appreciate visual effects that show
+   a requested action is being carried out"
+   ============================================ */
+@keyframes training-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.status-running {
+  animation: training-pulse 1s ease-in-out infinite;
+}
+
+/* Progress bar - dark with teal */
+.progress-bar {
+  height: 12px;
+  background: var(--dark-1);
+  border: 1px solid var(--dark-5);
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent-teal) 0px,
+    var(--accent-teal) 4px,
+    var(--accent-teal-dark) 4px,
+    var(--accent-teal-dark) 8px
+  );
+  transition: width 0.3s ease-out;
+  animation: progress-stripes 0.5s linear infinite;
+}
+
+@keyframes progress-stripes {
+  from { background-position: 0 0; }
+  to { background-position: 8px 0; }
+}
+
+/* ============================================
+   RESPONSIVE - Stack on mobile
+   ============================================ */
+@media (max-width: 768px) {
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .control-panel,
   .chart-panel,
   .token-panel,
   .attention-panel,
   .gradient-panel,
   .op-graph-panel {
-    grid-column: span 12;
+    grid-column: span 1;
+  }
+  
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .panel {
+    box-shadow: none;
+    break-inside: avoid;
+    background: white;
+    border-color: #ccc;
+  }
+  
+  .panel-titlebar {
+    background: #f0f0f0;
   }
 }

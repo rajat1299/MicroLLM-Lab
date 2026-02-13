@@ -1,3 +1,12 @@
+/**
+ * MicroLLM Lab — Early Mac Era UI
+ * 
+ * Design Philosophy (Apple HIG, 1987):
+ * - "The user, not the computer, initiates and controls all actions"
+ * - "People learn best when they're actively engaged"
+ * - "Graphics are not merely cosmetic... they contribute to understanding"
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cancelRun, createRun, eventStreamUrl, listPacks, uploadCorpus } from "./api";
@@ -37,11 +46,9 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 function renderLossPoints(points: LossPoint[]): string {
-  if (!points.length) {
-    return "";
-  }
+  if (!points.length) return "";
   const width = 520;
-  const height = 180;
+  const height = 160;
   const maxStep = points[points.length - 1].step;
   const maxLoss = Math.max(...points.map((p) => p.loss));
   const minLoss = Math.min(...points.map((p) => p.loss));
@@ -54,6 +61,42 @@ function renderLossPoints(points: LossPoint[]): string {
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
+}
+
+/** Classic Mac window title bar with close box */
+function PanelTitleBar({ title }: { title: string }) {
+  return (
+    <div className="panel-titlebar">
+      <div className="panel-closebox" aria-hidden="true" />
+      <span className="panel-title">{title}</span>
+    </div>
+  );
+}
+
+/** Returns intensity level for heatmap cell dithering */
+function getIntensityLevel(value: number): "low" | "medium" | "high" | "max" {
+  if (value < 0.2) return "low";
+  if (value < 0.5) return "medium";
+  if (value < 0.8) return "high";
+  return "max";
+}
+
+/** Friendly status messages - "expressed in the user's vocabulary" */
+function getStatusMessage(status: RunStatus | "idle", step?: number, maxSteps?: number): string {
+  switch (status) {
+    case "idle":
+      return "Ready to train";
+    case "running":
+      return step !== undefined ? `Training… step ${step} of ${maxSteps}` : "Training…";
+    case "completed":
+      return "Training complete ✓";
+    case "failed":
+      return "Training failed";
+    case "canceled":
+      return "Training canceled";
+    default:
+      return String(status);
+  }
 }
 
 export default function App() {
@@ -76,9 +119,11 @@ export default function App() {
   const [isPlayingGraph, setIsPlayingGraph] = useState(false);
   const [highlightNodeIndex, setHighlightNodeIndex] = useState(0);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  // Fetch available packs on mount
   useEffect(() => {
     listPacks()
       .then((data) => {
@@ -90,10 +135,10 @@ export default function App() {
       .catch((exc: Error) => setError(exc.message));
   }, []);
 
+  // SSE event stream for training updates
   useEffect(() => {
-    if (!runId) {
-      return;
-    }
+    if (!runId) return;
+
     const source = new EventSource(eventStreamUrl(runId));
     eventSourceRef.current = source;
 
@@ -104,6 +149,7 @@ export default function App() {
       if (parsed.type === "step.forward") {
         const frame = payload as unknown as ForwardFrame;
         setForwardFrames((prev) => [...prev, frame]);
+        setCurrentStep(frame.step);
       }
       if (parsed.type === "step.attention") {
         const frame = payload as unknown as AttentionFrame;
@@ -138,7 +184,7 @@ export default function App() {
       }
       if (parsed.type === "run.failed") {
         setStatus("failed");
-        setError(String(payload.error ?? "run failed"));
+        setError(String(payload.error ?? "Run failed"));
       }
       if (parsed.type === "run.canceled") {
         setStatus("canceled");
@@ -160,36 +206,34 @@ export default function App() {
 
     source.onerror = () => {
       if (status === "running") {
-        setError("Event stream interrupted. Refresh run state.");
+        setError("Connection lost. Training may still be running.");
       }
     };
 
-    return () => {
-      source.close();
-    };
+    return () => source.close();
   }, [runId, status]);
 
+  // Animated op-graph playback
   useEffect(() => {
-    if (!isPlayingGraph) {
-      return;
-    }
+    if (!isPlayingGraph) return;
     const graph = opGraphs[selectedOpGraphIndex];
-    if (!graph || graph.nodes.length === 0) {
-      return;
-    }
+    if (!graph || graph.nodes.length === 0) return;
+
     const timer = window.setInterval(() => {
       setHighlightNodeIndex((prev) => (prev + 1) % graph.nodes.length);
     }, 350);
+
     return () => window.clearInterval(timer);
   }, [isPlayingGraph, opGraphs, selectedOpGraphIndex]);
 
   const selectedForward = forwardFrames[selectedFrameIndex];
   const selectedAttention = attentionFrames[selectedFrameIndex];
   const selectedTokenAttention = selectedAttention?.token_attention.find(
-    (entry) => entry.position === selectedTokenPosition,
+    (entry) => entry.position === selectedTokenPosition
   );
   const selectedGraph = opGraphs[selectedOpGraphIndex];
 
+  // Sync frame indices
   useEffect(() => {
     if (selectedFrameIndex >= forwardFrames.length) {
       setSelectedFrameIndex(Math.max(forwardFrames.length - 1, 0));
@@ -205,9 +249,10 @@ export default function App() {
 
   const latestGradients = gradientFrames.length ? gradientFrames[gradientFrames.length - 1] : null;
   const latestUpdates = updateFrames.length ? updateFrames[updateFrames.length - 1] : null;
-
   const lossPolyline = useMemo(() => renderLossPoints(losses), [losses]);
+  const progressPercent = (currentStep / config.num_steps) * 100;
 
+  /** Start training - user initiates the action */
   async function handleCreateRun(): Promise<void> {
     setError("");
     setLosses([]);
@@ -221,6 +266,7 @@ export default function App() {
     setSelectedTokenPosition(0);
     setSelectedOpGraphIndex(0);
     setHighlightNodeIndex(0);
+    setCurrentStep(0);
 
     try {
       const run = await createRun(selectedPackId, config);
@@ -231,10 +277,9 @@ export default function App() {
     }
   }
 
+  /** Cancel training - user remains in control */
   async function handleCancelRun(): Promise<void> {
-    if (!runId) {
-      return;
-    }
+    if (!runId) return;
     try {
       await cancelRun(runId);
     } catch (exc) {
@@ -242,9 +287,10 @@ export default function App() {
     }
   }
 
+  /** Upload custom corpus */
   async function handleUpload(): Promise<void> {
     if (!uploadFile) {
-      setError("Choose a .txt file first");
+      setError("Please choose a .txt file first");
       return;
     }
     try {
@@ -269,282 +315,406 @@ export default function App() {
     setConfig((prev) => ({ ...prev, [key]: value }));
   }
 
+  const isRunning = status === "running";
+
   return (
     <div className="app-shell">
+      {/* ================================================
+          HERO - About Dialog Style
+          ================================================ */}
       <header className="hero">
-        <p className="hero-kicker">MicroLLM Lab</p>
-        <h1>Train tiny domain GPTs. Inspect every step.</h1>
-        <p>
-          Real-time forward/backward visualization with constrained server-side training and selected-token computation graphs.
-        </p>
+        <div className="hero-titlebar">
+          <div className="hero-closebox" aria-hidden="true" />
+          <span className="hero-title">About MicroLLM Lab</span>
+        </div>
+        <div className="hero-content">
+          <div className="hero-icon" aria-hidden="true" />
+          <h1>MicroLLM Lab</h1>
+          <p>Train tiny transformers. Watch them learn.</p>
+          <p>Real-time visualization of forward pass, attention, and backpropagation.</p>
+        </div>
       </header>
 
       <main className="layout-grid">
-        <section className="panel control-panel">
-          <h2>Run Setup</h2>
-          <label>
-            Domain Pack
-            <select value={selectedPackId} onChange={(event) => setSelectedPackId(event.target.value)}>
-              {packs.map((pack) => (
-                <option key={pack.pack_id} value={pack.pack_id}>
-                  {pack.title} ({pack.document_count} docs)
-                </option>
-              ))}
-            </select>
-          </label>
+        {/* ================================================
+            CONTROL PANEL - Run Setup
+            ================================================ */}
+        <section className="panel control-panel" aria-labelledby="control-title">
+          <PanelTitleBar title="Run Setup" />
+          <div className="panel-content">
+            <label>
+              <span>Domain Pack</span>
+              <select
+                value={selectedPackId}
+                onChange={(e) => setSelectedPackId(e.target.value)}
+                aria-describedby="pack-description"
+              >
+                {packs.map((pack) => (
+                  <option key={pack.pack_id} value={pack.pack_id}>
+                    {pack.title} ({pack.document_count} docs)
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p id="pack-description" className="muted">
+              Choose training data for the model.
+            </p>
 
-          <div className="config-grid">
-            <label>
-              Steps
+            <h3>Model Configuration</h3>
+            <div className="config-grid">
+              <label>
+                <span>Steps</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={2000}
+                  value={config.num_steps}
+                  onChange={(e) => updateConfig("num_steps", clampNumber(Number(e.target.value), 1, 2000))}
+                  aria-describedby="steps-hint"
+                />
+              </label>
+              <label>
+                <span>Block Size</span>
+                <input
+                  type="number"
+                  min={4}
+                  max={64}
+                  value={config.block_size}
+                  onChange={(e) => updateConfig("block_size", clampNumber(Number(e.target.value), 4, 64))}
+                />
+              </label>
+              <label>
+                <span>Embedding Dim</span>
+                <input
+                  type="number"
+                  min={8}
+                  max={64}
+                  step={8}
+                  value={config.n_embd}
+                  onChange={(e) => updateConfig("n_embd", clampNumber(Number(e.target.value), 8, 64))}
+                />
+              </label>
+              <label>
+                <span>Heads</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={8}
+                  value={config.n_head}
+                  onChange={(e) => updateConfig("n_head", clampNumber(Number(e.target.value), 1, 8))}
+                />
+              </label>
+              <label>
+                <span>Layers</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={2}
+                  value={config.n_layer}
+                  onChange={(e) => updateConfig("n_layer", clampNumber(Number(e.target.value), 1, 2))}
+                />
+              </label>
+              <label>
+                <span>Learning Rate</span>
+                <input
+                  type="number"
+                  step={0.001}
+                  min={0.001}
+                  max={0.1}
+                  value={config.learning_rate}
+                  onChange={(e) => updateConfig("learning_rate", clampNumber(Number(e.target.value), 0.001, 0.1))}
+                />
+              </label>
+              <label>
+                <span>Temperature</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  min={0.1}
+                  max={1.5}
+                  value={config.temperature}
+                  onChange={(e) => updateConfig("temperature", clampNumber(Number(e.target.value), 0.1, 1.5))}
+                />
+              </label>
+              <label>
+                <span>Graph Token</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={63}
+                  value={config.op_graph_token_index}
+                  onChange={(e) => updateConfig("op_graph_token_index", clampNumber(Number(e.target.value), 0, 63))}
+                />
+              </label>
+            </div>
+            <p id="steps-hint" className="muted">
+              More steps = longer training, finer learning.
+            </p>
+
+            {/* Action buttons - user in control */}
+            <div className="action-row">
+              <button
+                className="primary"
+                onClick={handleCreateRun}
+                disabled={!selectedPackId || isRunning}
+                aria-busy={isRunning}
+              >
+                {isRunning ? "Training…" : "Start Training"}
+              </button>
+              <button
+                className="secondary"
+                onClick={handleCancelRun}
+                disabled={!runId || !isRunning}
+              >
+                Stop
+              </button>
+            </div>
+
+            {/* Progress indicator - immediate feedback */}
+            {isRunning && (
+              <div className="progress-bar" role="progressbar" aria-valuenow={currentStep} aria-valuemax={config.num_steps}>
+                <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+              </div>
+            )}
+
+            {/* Upload section */}
+            <div className="upload-box">
+              <h3>Custom Corpus</h3>
+              <p className="muted">Upload .txt file (max 200KB)</p>
               <input
-                type="number"
-                min={1}
-                max={2000}
-                value={config.num_steps}
-                onChange={(event) => updateConfig("num_steps", clampNumber(Number(event.target.value), 1, 2000))}
+                type="file"
+                accept=".txt,text/plain"
+                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                aria-label="Choose text file to upload"
+              />
+              <button className="secondary" onClick={handleUpload} style={{ marginTop: "4px" }}>
+                Use Upload
+              </button>
+            </div>
+
+            {/* Status - brief, direct communication */}
+            <p className={`status-line ${isRunning ? "status-running" : ""}`} aria-live="polite">
+              {getStatusMessage(status, currentStep, config.num_steps)}
+              {runId ? ` • ID: ${runId.slice(0, 8)}…` : ""}
+            </p>
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* ================================================
+            LOSS CHART
+            ================================================ */}
+        <section className="panel chart-panel" aria-labelledby="loss-title">
+          <PanelTitleBar title="Loss Curve" />
+          <div className="panel-content">
+            <svg
+              viewBox="0 0 520 180"
+              className="loss-chart"
+              aria-label={`Loss curve chart showing ${losses.length} data points`}
+              role="img"
+            >
+              {/* Grid lines */}
+              <line className="chart-grid" x1="0" y1="45" x2="520" y2="45" />
+              <line className="chart-grid" x1="0" y1="90" x2="520" y2="90" />
+              <line className="chart-grid" x1="0" y1="135" x2="520" y2="135" />
+              {/* Axis */}
+              <line className="chart-axis" x1="0" y1="160" x2="520" y2="160" />
+              {/* Loss curve */}
+              <polyline points={lossPolyline} />
+            </svg>
+            <p className="muted">
+              Steps: {losses.length} • Frames: {forwardFrames.length}
+              {losses.length > 0 && ` • Latest loss: ${losses[losses.length - 1].loss.toFixed(4)}`}
+            </p>
+          </div>
+        </section>
+
+        {/* ================================================
+            TOKEN TIMELINE
+            ================================================ */}
+        <section className="panel token-panel" aria-labelledby="token-title">
+          <PanelTitleBar title="Token Timeline" />
+          <div className="panel-content">
+            <label>
+              <span>Step Index ({selectedFrameIndex})</span>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(forwardFrames.length - 1, 0)}
+                value={selectedFrameIndex}
+                onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
+                aria-valuetext={`Step ${selectedFrameIndex}`}
               />
             </label>
             <label>
-              Block Size
-              <input
-                type="number"
-                min={4}
-                max={64}
-                value={config.block_size}
-                onChange={(event) => updateConfig("block_size", clampNumber(Number(event.target.value), 4, 64))}
-              />
-            </label>
-            <label>
-              n_embd
-              <input
-                type="number"
-                min={8}
-                max={64}
-                step={8}
-                value={config.n_embd}
-                onChange={(event) => updateConfig("n_embd", clampNumber(Number(event.target.value), 8, 64))}
-              />
-            </label>
-            <label>
-              n_head
-              <input
-                type="number"
-                min={1}
-                max={8}
-                value={config.n_head}
-                onChange={(event) => updateConfig("n_head", clampNumber(Number(event.target.value), 1, 8))}
-              />
-            </label>
-            <label>
-              n_layer
-              <input
-                type="number"
-                min={1}
-                max={2}
-                value={config.n_layer}
-                onChange={(event) => updateConfig("n_layer", clampNumber(Number(event.target.value), 1, 2))}
-              />
-            </label>
-            <label>
-              Learning Rate
-              <input
-                type="number"
-                step={0.001}
-                min={0.001}
-                max={0.1}
-                value={config.learning_rate}
-                onChange={(event) => updateConfig("learning_rate", clampNumber(Number(event.target.value), 0.001, 0.1))}
-              />
-            </label>
-            <label>
-              Temperature
-              <input
-                type="number"
-                step={0.1}
-                min={0.1}
-                max={1.5}
-                value={config.temperature}
-                onChange={(event) => updateConfig("temperature", clampNumber(Number(event.target.value), 0.1, 1.5))}
-              />
-            </label>
-            <label>
-              Op Graph Token Index
+              <span>Token Position</span>
               <input
                 type="number"
                 min={0}
                 max={63}
-                value={config.op_graph_token_index}
-                onChange={(event) => updateConfig("op_graph_token_index", clampNumber(Number(event.target.value), 0, 63))}
+                value={selectedTokenPosition}
+                onChange={(e) => setSelectedTokenPosition(clampNumber(Number(e.target.value), 0, 63))}
               />
             </label>
-          </div>
-
-          <div className="action-row">
-            <button onClick={handleCreateRun} disabled={!selectedPackId || status === "running"}>
-              Start Run
-            </button>
-            <button onClick={handleCancelRun} disabled={!runId || status !== "running"} className="secondary">
-              Cancel
-            </button>
-          </div>
-
-          <div className="upload-box">
-            <h3>Constrained Upload (.txt, max 200KB)</h3>
-            <input type="file" accept=".txt,text/plain" onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)} />
-            <button onClick={handleUpload} className="secondary">Use Upload as Pack</button>
-          </div>
-
-          <p className="status-line">
-            Status: <strong>{status}</strong>
-            {runId ? ` | run_id: ${runId}` : ""}
-          </p>
-          {error ? <p className="error">{error}</p> : null}
-        </section>
-
-        <section className="panel chart-panel">
-          <h2>Loss Curve</h2>
-          <svg viewBox="0 0 520 180" className="loss-chart" aria-label="Loss curve">
-            <polyline points={lossPolyline} fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
-          <p className="muted">Forward frames: {forwardFrames.length} | Attention frames: {attentionFrames.length}</p>
-        </section>
-
-        <section className="panel token-panel">
-          <h2>Token Timeline</h2>
-          <label>
-            Step Index
-            <input
-              type="range"
-              min={0}
-              max={Math.max(forwardFrames.length - 1, 0)}
-              value={selectedFrameIndex}
-              onChange={(event) => setSelectedFrameIndex(Number(event.target.value))}
-            />
-          </label>
-          <label>
-            Token Position
-            <input
-              type="number"
-              min={0}
-              max={63}
-              value={selectedTokenPosition}
-              onChange={(event) => setSelectedTokenPosition(clampNumber(Number(event.target.value), 0, 63))}
-            />
-          </label>
-          <div className="token-list">
-            {(selectedForward?.token_summaries ?? []).map((item, index) => {
-              const tokenItem = item as { position: number; input_token: string; target_token: string; top_k: Array<{ token: string; prob: number }> };
-              return (
-                <article key={`${tokenItem.position}-${index}`} className="token-card">
-                  <p>
-                    pos {tokenItem.position}: <code>{tokenItem.input_token}</code> -&gt; <code>{tokenItem.target_token}</code>
-                  </p>
-                  <p>
-                    top-k: {tokenItem.top_k.map((entry) => `${entry.token}:${entry.prob.toFixed(3)}`).join(" | ")}
-                  </p>
-                </article>
-              );
-            })}
+            <div className="token-list" role="list" aria-label="Token predictions">
+              {(selectedForward?.token_summaries ?? []).map((item, index) => {
+                const tok = item as {
+                  position: number;
+                  input_token: string;
+                  target_token: string;
+                  top_k: Array<{ token: string; prob: number }>;
+                };
+                return (
+                  <article key={`${tok.position}-${index}`} className="token-card" role="listitem">
+                    <p>
+                      <strong>pos {tok.position}:</strong> <code>{tok.input_token}</code> → <code>{tok.target_token}</code>
+                    </p>
+                    <p>
+                      top-k: {tok.top_k.map((e) => `${e.token}:${e.prob.toFixed(3)}`).join(" | ")}
+                    </p>
+                  </article>
+                );
+              })}
+              {!selectedForward && <p className="muted" style={{ padding: "8px" }}>Start training to see tokens…</p>}
+            </div>
           </div>
         </section>
 
-        <section className="panel attention-panel">
-          <h2>Attention Heatmap</h2>
-          <p className="muted">Selected token position: {selectedTokenPosition}</p>
-          <div className="heatmap-grid">
-            {(selectedTokenAttention?.heads ?? []).map((head, headIndex) => (
-              <div key={headIndex} className="head-row">
-                <span className="head-label">Head {headIndex}</span>
-                <div className="head-values">
-                  {head.map((value, idx) => (
-                    <span
-                      key={`${headIndex}-${idx}`}
-                      className="cell"
-                      style={{ opacity: clampNumber(value, 0.08, 1) }}
-                      title={`t${idx}: ${value}`}
-                    >
-                      {value.toFixed(2)}
-                    </span>
-                  ))}
+        {/* ================================================
+            ATTENTION HEATMAP
+            ================================================ */}
+        <section className="panel attention-panel" aria-labelledby="attention-title">
+          <PanelTitleBar title="Attention Weights" />
+          <div className="panel-content">
+            <p className="muted">Token position: {selectedTokenPosition}</p>
+            <div className="heatmap-grid" role="table" aria-label="Attention heatmap">
+              {(selectedTokenAttention?.heads ?? []).map((head, headIndex) => (
+                <div key={headIndex} className="head-row" role="row">
+                  <span className="head-label" role="rowheader">Head {headIndex}</span>
+                  <div className="head-values" role="rowgroup">
+                    {head.map((value, idx) => (
+                      <span
+                        key={`${headIndex}-${idx}`}
+                        className="cell"
+                        data-intensity={getIntensityLevel(value)}
+                        role="cell"
+                        title={`Position ${idx}: ${value.toFixed(4)}`}
+                        aria-label={`Attention ${value.toFixed(2)} at position ${idx}`}
+                      >
+                        {value.toFixed(2)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
+              ))}
+              {!selectedTokenAttention && <p className="muted">Attention data appears during training…</p>}
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================
+            GRADIENT & UPDATE NORMS
+            ================================================ */}
+        <section className="panel gradient-panel" aria-labelledby="gradient-title">
+          <PanelTitleBar title="Gradients & Updates" />
+          <div className="panel-content">
+            <div className="norm-columns">
+              <div>
+                <h3>Gradient Norms (step {latestGradients?.step ?? 0})</h3>
+                <ul aria-label="Gradient norms by layer">
+                  {Object.entries(latestGradients?.values ?? {}).map(([key, value]) => (
+                    <li key={key}>
+                      {key}: {value.toFixed(6)}
+                    </li>
+                  ))}
+                  {!latestGradients && <li className="muted">Waiting for backward pass…</li>}
+                </ul>
               </div>
-            ))}
+              <div>
+                <h3>Update Norms (step {latestUpdates?.step ?? 0})</h3>
+                <ul aria-label="Update norms by layer">
+                  {Object.entries(latestUpdates?.values ?? {}).map(([key, value]) => (
+                    <li key={key}>
+                      {key}: {value.toFixed(6)}
+                    </li>
+                  ))}
+                  {!latestUpdates && <li className="muted">Waiting for updates…</li>}
+                </ul>
+              </div>
+            </div>
+            <h3>Generated Samples</h3>
+            <ul className="samples" aria-label="Generated text samples">
+              {samples.map((sample, index) => (
+                <li key={`${sample}-${index}`}>{sample || "(empty)"}</li>
+              ))}
+              {samples.length === 0 && <li className="muted">Samples appear periodically during training…</li>}
+            </ul>
           </div>
         </section>
 
-        <section className="panel gradient-panel">
-          <h2>Gradient and Update Norms</h2>
-          <div className="norm-columns">
-            <div>
-              <h3>Gradients (step {latestGradients?.step ?? 0})</h3>
-              <ul>
-                {Object.entries(latestGradients?.values ?? {}).map(([key, value]) => (
-                  <li key={key}>{key}: {value.toFixed(6)}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3>Updates (step {latestUpdates?.step ?? 0})</h3>
-              <ul>
-                {Object.entries(latestUpdates?.values ?? {}).map(([key, value]) => (
-                  <li key={key}>{key}: {value.toFixed(6)}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <h3>Samples</h3>
-          <ul className="samples">
-            {samples.map((sample, index) => (
-              <li key={`${sample}-${index}`}>{sample || "<empty>"}</li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="panel op-graph-panel">
-          <h2>Operation Graph (Selected Token)</h2>
-          <label>
-            Graph Snapshot
-            <input
-              type="range"
-              min={0}
-              max={Math.max(opGraphs.length - 1, 0)}
-              value={selectedOpGraphIndex}
-              onChange={(event) => {
-                setSelectedOpGraphIndex(Number(event.target.value));
-                setHighlightNodeIndex(0);
-              }}
-            />
-          </label>
-          <div className="action-row">
-            <button className="secondary" onClick={() => setIsPlayingGraph((prev) => !prev)}>
-              {isPlayingGraph ? "Pause" : "Play"}
-            </button>
-            <button
-              className="secondary"
-              onClick={() => {
-                if (!selectedGraph?.nodes.length) {
-                  return;
-                }
-                setHighlightNodeIndex((prev) => (prev + 1) % selectedGraph.nodes.length);
-              }}
-            >
-              Step
-            </button>
-          </div>
-          <p className="muted">
-            Snapshot step: {selectedGraph?.step ?? 0} | nodes: {selectedGraph?.nodes.length ?? 0} | edges: {selectedGraph?.edges.length ?? 0}
-          </p>
-          <div className="graph-list">
-            {(selectedGraph?.nodes ?? []).map((node, index) => (
-              <div
-                key={node.id}
-                className={index === highlightNodeIndex ? "graph-node highlighted" : "graph-node"}
+        {/* ================================================
+            OPERATION GRAPH
+            ================================================ */}
+        <section className="panel op-graph-panel" aria-labelledby="opgraph-title">
+          <PanelTitleBar title="Operation Graph" />
+          <div className="panel-content">
+            <label>
+              <span>Graph Snapshot ({selectedOpGraphIndex})</span>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(opGraphs.length - 1, 0)}
+                value={selectedOpGraphIndex}
+                onChange={(e) => {
+                  setSelectedOpGraphIndex(Number(e.target.value));
+                  setHighlightNodeIndex(0);
+                }}
+                aria-valuetext={`Snapshot ${selectedOpGraphIndex}`}
+              />
+            </label>
+            <div className="action-row">
+              <button
+                className="secondary"
+                onClick={() => setIsPlayingGraph((prev) => !prev)}
+                aria-pressed={isPlayingGraph}
+                aria-label={isPlayingGraph ? "Pause animation" : "Play animation"}
               >
-                <span>id:{node.id}</span>
-                <span>val:{node.value.toFixed(6)}</span>
-                <span>grad:{node.grad.toFixed(6)}</span>
-              </div>
-            ))}
+                {isPlayingGraph ? "Pause" : "Play"}
+              </button>
+              <button
+                className="secondary"
+                onClick={() => {
+                  if (!selectedGraph?.nodes.length) return;
+                  setHighlightNodeIndex((prev) => (prev + 1) % selectedGraph.nodes.length);
+                }}
+                disabled={!selectedGraph?.nodes.length}
+                aria-label="Step to next node"
+              >
+                Step
+              </button>
+            </div>
+            <p className="muted">
+              Step: {selectedGraph?.step ?? 0} • Nodes: {selectedGraph?.nodes.length ?? 0} • Edges: {selectedGraph?.edges.length ?? 0}
+            </p>
+            <div className="graph-list" role="list" aria-label="Computation graph nodes">
+              {(selectedGraph?.nodes ?? []).map((node, index) => (
+                <div
+                  key={node.id}
+                  className={index === highlightNodeIndex ? "graph-node highlighted" : "graph-node"}
+                  role="listitem"
+                  aria-current={index === highlightNodeIndex ? "true" : undefined}
+                >
+                  <span>id:{node.id}</span>
+                  <span>val:{node.value.toFixed(5)}</span>
+                  <span>grad:{node.grad.toFixed(5)}</span>
+                </div>
+              ))}
+              {!selectedGraph && <p className="muted" style={{ padding: "8px" }}>Graph data appears during training…</p>}
+            </div>
           </div>
         </section>
       </main>
