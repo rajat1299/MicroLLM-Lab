@@ -20,6 +20,10 @@ def train_run_job(run_id: str) -> None:
         logger.error("run_not_found", extra={"run_id": run_id})
         return
 
+    if store.is_cancel_requested(run_id):
+        store.update_run_status(run_id, "canceled")
+        return
+
     try:
         store.update_run_status(run_id, "running")
 

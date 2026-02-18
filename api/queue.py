@@ -22,7 +22,7 @@ class RedisRunQueue:
         job = self.queue.enqueue(
             "worker.jobs.train_run_job",
             run_id,
-            job_timeout=60 * 30,
+            job_timeout=60 * 120,
             result_ttl=RUN_LIMITS["ttl_seconds"],
             failure_ttl=RUN_LIMITS["ttl_seconds"],
         )

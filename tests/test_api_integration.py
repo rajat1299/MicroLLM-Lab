@@ -118,3 +118,16 @@ def test_upload_and_run_flow() -> None:
     details = client.get(f"/api/v1/runs/{run_id}")
     assert details.status_code == 200
     assert details.json()["status"] == "completed"
+
+
+def test_pack_list_includes_new_builtin_ids() -> None:
+    redis = fakeredis.FakeRedis(decode_responses=True)
+    store = RunStore(redis)
+    app = create_app(store=store, queue=InlineQueue(store))
+    client = TestClient(app)
+
+    response = client.get("/api/v1/packs")
+    assert response.status_code == 200
+    pack_ids = {pack["pack_id"] for pack in response.json()}
+    assert "arithmetic" in pack_ids
+    assert "json" in pack_ids

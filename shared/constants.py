@@ -18,7 +18,7 @@ RUN_LIMITS = {
 TERMINAL_STATUSES = {"completed", "failed", "canceled"}
 ACTIVE_STATUSES = {"queued", "running"}
 
-BUILTIN_PACK_IDS = ["regex", "abc_music", "chess_pgn", "sql_snippets"]
+BUILTIN_PACK_IDS = ["regex", "abc_music", "chess_pgn", "sql_snippets", "arithmetic", "json"]
 
 PACK_DIR = Path(__file__).resolve().parents[1] / "packs"
 

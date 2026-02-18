@@ -23,6 +23,14 @@ PACK_METADATA = {
         "title": "SQL Snippets",
         "description": "Short query patterns and clauses.",
     },
+    "arithmetic": {
+        "title": "Arithmetic",
+        "description": "Digit-level addition and subtraction templates.",
+    },
+    "json": {
+        "title": "JSON Objects",
+        "description": "Small fixed-schema JSON lines with typed fields.",
+    },
 }
 
 

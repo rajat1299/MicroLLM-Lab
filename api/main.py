@@ -136,6 +136,7 @@ def create_app(store: RunStore | None = None, queue: RunQueue | None = None) -> 
             return {"status": run.status}
 
         store_client.request_cancel(run_id)
+        store_client.update_run_status(run_id, "canceled")
         store_client.append_event(
             run_id,
             "run.canceled",

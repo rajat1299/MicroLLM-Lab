@@ -21,18 +21,20 @@ You configure a tiny GPT (we're talking 2 layers, 64 dimensions—small enough t
 
 ---
 
-## The Four Packs
+## The Six Packs
 
-We ship with four curated datasets(more to be added), each designed to teach something specific about how transformers learn structure:
+We ship with six curated datasets, each designed to teach a specific structural pattern under strict, deterministic templates:
 
 | Pack | What It Teaches | Corpus Size |
 |------|----------------|-------------|
-| **regex** | Pattern matching and state tracking | ~15K chars |
-| **abc_music** | Hierarchical structure and repetition | ~45K chars |
-| **chess_pgn** | Long-range dependencies and legal move constraints | ~38K chars |
-| **sql_snippets** | Syntax adherence and column-table relationships | ~22K chars |
+| **regex** | Pattern matching with constrained email-style regexes | 60 lines (~1.4K chars) |
+| **abc_music** | Repetition and motif composition in fixed bars | 60 lines (~1.9K chars) |
+| **chess_pgn** | Move-sequence dependencies in 3-move openings | 60 lines (~1.8K chars) |
+| **sql_snippets** | Query form consistency (`SELECT ... WHERE ...`) | 60 lines (~2.5K chars) |
+| **arithmetic** | Symbolic completion for `A±B=C` relations | 60 lines (~0.4K chars) |
+| **json** | Key/value structure adherence in compact objects | 60 lines (~1.6K chars) |
 
-Each pack includes preprocessing notes and expected training dynamics in `/packs/README.md`.
+Pack templates, constraints, and regeneration commands are documented in `/packs/README.md`.
 
 ---
 
