@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cancelRun, createRun, eventStreamUrl, listPacks, uploadCorpus } from "./api";
+import { nextFrameIndexAfterAppend, shouldAcceptEventSequence } from "./liveViewState";
 import type { PackDescriptor, RunConfig, RunEvent, RunStatus } from "./types";
 
 const DEFAULT_CONFIG: RunConfig = {
@@ -64,11 +65,17 @@ function renderLossPoints(points: LossPoint[]): string {
 }
 
 /** Classic Mac window title bar with close box */
-function PanelTitleBar({ title }: { title: string }) {
+function PanelTitleBar({ title, icon, helpText }: { title: string; icon: string; helpText: string }) {
   return (
     <div className="panel-titlebar">
       <div className="panel-closebox" aria-hidden="true" />
-      <span className="panel-title">{title}</span>
+      <span className="panel-title">
+        <span className="panel-title-icon" aria-hidden="true">{icon}</span>
+        {title}
+      </span>
+      <button type="button" className="panel-help" title={helpText} aria-label={`Help for ${title}`}>
+        ?
+      </button>
     </div>
   );
 }
@@ -120,8 +127,13 @@ export default function App() {
   const [highlightNodeIndex, setHighlightNodeIndex] = useState(0);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isFollowingLatestStep, setIsFollowingLatestStep] = useState(true);
 
   const eventSourceRef = useRef<EventSource | null>(null);
+  const lastSeenSeqRef = useRef(0);
+  const streamTerminalRef = useRef(false);
+  const isFollowingLatestStepRef = useRef(true);
+  const selectedFrameIndexRef = useRef(0);
 
   // Fetch available packs on mount
   useEffect(() => {
@@ -135,20 +147,59 @@ export default function App() {
       .catch((exc: Error) => setError(exc.message));
   }, []);
 
+  useEffect(() => {
+    isFollowingLatestStepRef.current = isFollowingLatestStep;
+  }, [isFollowingLatestStep]);
+
+  useEffect(() => {
+    selectedFrameIndexRef.current = selectedFrameIndex;
+  }, [selectedFrameIndex]);
+
   // SSE event stream for training updates
   useEffect(() => {
     if (!runId) return;
+
+    lastSeenSeqRef.current = 0;
+    streamTerminalRef.current = false;
 
     const source = new EventSource(eventStreamUrl(runId));
     eventSourceRef.current = source;
 
     const onEvent = (event: MessageEvent<string>) => {
-      const parsed = JSON.parse(event.data) as RunEvent;
+      let parsed: RunEvent;
+      try {
+        parsed = JSON.parse(event.data) as RunEvent;
+      } catch {
+        return;
+      }
+
+      const seq = Number(parsed.seq ?? 0);
+      if (!shouldAcceptEventSequence(lastSeenSeqRef.current, seq)) {
+        return;
+      }
+      lastSeenSeqRef.current = seq;
+
       const payload = parsed.payload;
 
+      if (parsed.type === "run.started") {
+        streamTerminalRef.current = false;
+        setStatus("running");
+      }
       if (parsed.type === "step.forward") {
         const frame = payload as unknown as ForwardFrame;
-        setForwardFrames((prev) => [...prev, frame]);
+        setForwardFrames((prev) => {
+          const next = [...prev, frame];
+          const nextIndex = nextFrameIndexAfterAppend(
+            prev.length,
+            isFollowingLatestStepRef.current,
+            selectedFrameIndexRef.current,
+          );
+          if (nextIndex !== selectedFrameIndexRef.current) {
+            selectedFrameIndexRef.current = nextIndex;
+            setSelectedFrameIndex(nextIndex);
+          }
+          return next;
+        });
         setCurrentStep(frame.step);
       }
       if (parsed.type === "step.attention") {
@@ -180,13 +231,16 @@ export default function App() {
         setSamples(generated);
       }
       if (parsed.type === "run.completed") {
+        streamTerminalRef.current = true;
         setStatus("completed");
       }
       if (parsed.type === "run.failed") {
+        streamTerminalRef.current = true;
         setStatus("failed");
         setError(String(payload.error ?? "Run failed"));
       }
       if (parsed.type === "run.canceled") {
+        streamTerminalRef.current = true;
         setStatus("canceled");
       }
     };
@@ -205,13 +259,18 @@ export default function App() {
     ].forEach((eventName) => source.addEventListener(eventName, onEvent));
 
     source.onerror = () => {
-      if (status === "running") {
+      if (!streamTerminalRef.current) {
         setError("Connection lost. Training may still be running.");
       }
     };
 
-    return () => source.close();
-  }, [runId, status]);
+    return () => {
+      source.close();
+      if (eventSourceRef.current === source) {
+        eventSourceRef.current = null;
+      }
+    };
+  }, [runId]);
 
   // Animated op-graph playback
   useEffect(() => {
@@ -236,7 +295,9 @@ export default function App() {
   // Sync frame indices
   useEffect(() => {
     if (selectedFrameIndex >= forwardFrames.length) {
-      setSelectedFrameIndex(Math.max(forwardFrames.length - 1, 0));
+      const clampedIndex = Math.max(forwardFrames.length - 1, 0);
+      selectedFrameIndexRef.current = clampedIndex;
+      setSelectedFrameIndex(clampedIndex);
     }
   }, [forwardFrames.length, selectedFrameIndex]);
 
@@ -251,6 +312,7 @@ export default function App() {
   const latestUpdates = updateFrames.length ? updateFrames[updateFrames.length - 1] : null;
   const lossPolyline = useMemo(() => renderLossPoints(losses), [losses]);
   const progressPercent = (currentStep / config.num_steps) * 100;
+  const latestFrameIndex = Math.max(forwardFrames.length - 1, 0);
 
   /** Start training - user initiates the action */
   async function handleCreateRun(): Promise<void> {
@@ -263,10 +325,15 @@ export default function App() {
     setSamples([]);
     setOpGraphs([]);
     setSelectedFrameIndex(0);
+    selectedFrameIndexRef.current = 0;
     setSelectedTokenPosition(0);
     setSelectedOpGraphIndex(0);
     setHighlightNodeIndex(0);
     setCurrentStep(0);
+    setIsFollowingLatestStep(true);
+    isFollowingLatestStepRef.current = true;
+    lastSeenSeqRef.current = 0;
+    streamTerminalRef.current = false;
 
     try {
       const run = await createRun(selectedPackId, config);
@@ -315,6 +382,14 @@ export default function App() {
     setConfig((prev) => ({ ...prev, [key]: value }));
   }
 
+  function handleFollowLive(): void {
+    if (forwardFrames.length === 0) return;
+    setIsFollowingLatestStep(true);
+    isFollowingLatestStepRef.current = true;
+    selectedFrameIndexRef.current = latestFrameIndex;
+    setSelectedFrameIndex(latestFrameIndex);
+  }
+
   const isRunning = status === "running";
 
   return (
@@ -340,8 +415,13 @@ export default function App() {
             CONTROL PANEL - Run Setup
             ================================================ */}
         <section className="panel control-panel" aria-labelledby="control-title">
-          <PanelTitleBar title="Run Setup" />
+          <PanelTitleBar
+            title="Run Setup"
+            icon="⚙"
+            helpText="Pick a training pack, tune run settings, and start or stop a training job."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">Choose data and settings, then start training.</p>
             <label>
               <span>Domain Pack</span>
               <select
@@ -509,8 +589,13 @@ export default function App() {
             LOSS CHART
             ================================================ */}
         <section className="panel chart-panel" aria-labelledby="loss-title">
-          <PanelTitleBar title="Loss Curve" />
+          <PanelTitleBar
+            title="Loss Curve"
+            icon="📉"
+            helpText="Tracks model error over training steps. Lower is usually better."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">This chart shows if the model is improving.</p>
             <svg
               viewBox="0 0 520 180"
               className="loss-chart"
@@ -537,8 +622,26 @@ export default function App() {
             TOKEN TIMELINE
             ================================================ */}
         <section className="panel token-panel" aria-labelledby="token-title">
-          <PanelTitleBar title="Token Timeline" />
+          <PanelTitleBar
+            title="Token Timeline"
+            icon="🔤"
+            helpText="Inspect per-token predictions at each training step."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">Scrub steps to see what token was predicted next.</p>
+            <div className="timeline-controls">
+              <span className={isFollowingLatestStep ? "follow-badge live" : "follow-badge paused"}>
+                {isFollowingLatestStep ? "Live" : "Paused"}
+              </span>
+              <button
+                type="button"
+                className="secondary follow-live-button"
+                onClick={handleFollowLive}
+                disabled={forwardFrames.length === 0 || isFollowingLatestStep}
+              >
+                Follow Live
+              </button>
+            </div>
             <label>
               <span>Step Index ({selectedFrameIndex})</span>
               <input
@@ -546,7 +649,13 @@ export default function App() {
                 min={0}
                 max={Math.max(forwardFrames.length - 1, 0)}
                 value={selectedFrameIndex}
-                onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
+                onChange={(e) => {
+                  const nextIndex = Number(e.target.value);
+                  setSelectedFrameIndex(nextIndex);
+                  selectedFrameIndexRef.current = nextIndex;
+                  setIsFollowingLatestStep(false);
+                  isFollowingLatestStepRef.current = false;
+                }}
                 aria-valuetext={`Step ${selectedFrameIndex}`}
               />
             </label>
@@ -588,8 +697,13 @@ export default function App() {
             ATTENTION HEATMAP
             ================================================ */}
         <section className="panel attention-panel" aria-labelledby="attention-title">
-          <PanelTitleBar title="Attention Weights" />
+          <PanelTitleBar
+            title="Attention Weights"
+            icon="🎯"
+            helpText="Shows which earlier token positions each attention head focuses on."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">Each row is one head deciding where to look.</p>
             <p className="muted">Token position: {selectedTokenPosition}</p>
             <div className="heatmap-grid" role="table" aria-label="Attention heatmap">
               {(selectedTokenAttention?.heads ?? []).map((head, headIndex) => (
@@ -620,8 +734,13 @@ export default function App() {
             GRADIENT & UPDATE NORMS
             ================================================ */}
         <section className="panel gradient-panel" aria-labelledby="gradient-title">
-          <PanelTitleBar title="Gradients & Updates" />
+          <PanelTitleBar
+            title="Gradients & Updates"
+            icon="📐"
+            helpText="Gradients show learning signal strength; updates show how much parameters changed."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">These numbers show how strongly the model is learning.</p>
             <div className="norm-columns">
               <div>
                 <h3>Gradient Norms (step {latestGradients?.step ?? 0})</h3>
@@ -660,8 +779,13 @@ export default function App() {
             OPERATION GRAPH
             ================================================ */}
         <section className="panel op-graph-panel" aria-labelledby="opgraph-title">
-          <PanelTitleBar title="Operation Graph" />
+          <PanelTitleBar
+            title="Operation Graph"
+            icon="🕸"
+            helpText="Snapshot of value and gradient flow through scalar math operations."
+          />
           <div className="panel-content">
+            <p className="panel-explainer">Zoom into one token's math graph and gradient flow.</p>
             <label>
               <span>Graph Snapshot ({selectedOpGraphIndex})</span>
               <input
